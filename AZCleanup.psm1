@@ -77,9 +77,19 @@ Function GetUnattachedNICs {
 Function ShowNICS{
     Param (
         [parameter(Mandatory)]
-        $selectedSubscriptionID
+        $SubscriptionID,
+        [parameter()]
+        $ResourceGroup
     )    
-    $nics=GetUnattachedNICs $selectedSubscriptionID
+
+
+    If ($ResourceGroup) {
+        $nics=GetUnattachedNICs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup
+    }else{    
+        $nics=GetUnattachedNICs $SubscriptionID
+    }
+
+    
     If (!($nics)){
         Write-host "No nics found"
         return $false
@@ -187,9 +197,20 @@ Function GetUnattachedPIPs {
 Function ShowPIPs{
     Param (
         [parameter(Mandatory)]
-        $selectedSubscriptionID
+        $SubscriptionID,
+        [parameter()]
+        $ResourceGroup
     )    
-    $pips=GetUnattachedPIPs $selectedSubscriptionID
+
+
+    If ($ResourceGroup) {
+        $pips=GetUnattachedPIPs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup
+    }else{    
+        $pips=GetUnattachedPIPs $SubscriptionID
+    }
+    
+
+    
     If (!($pips)){
         Write-host "No Public IP's found"
         return $false
@@ -345,9 +366,18 @@ Function GetUnattachedDisks{
 Function ShowDisks{
     Param (
         [parameter(Mandatory)]
-        $selectedSubscriptionID
+        $SubscriptionID,
+        [parameter()]
+        $ResourceGroup
     )    
-    $disks=GetUnattachedDisks $selectedSubscriptionID
+    
+    
+    If ($ResourceGroup) {
+        $disks=GetUnattachedDisks -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup
+    }else{    
+        $disks=GetUnattachedDisks $SubscriptionID
+    }
+
     If (!($disks)){
         Write-host "No disks found"
         return $false
@@ -394,11 +424,23 @@ Function DeleteObject{
         $Confirmed
     )
 
-    Switch ($ObjectType) {
-        "Disks" {[array]$objects=GetUnattachedDisks $SubscriptionID}
-        "NICs" {[array]$objects=GetUnattachedNICs $SubscriptionID}
-        "PIPs" {[array]$objects=GetUnattachedNICs $SubscriptionID}
+    If (!($ResourceGroup)){
+        Write-Verbose ("No Resource group specified" )
+        Switch ($ObjectType) {
+            "Disks" {[array]$objects=GetUnattachedDisks $SubscriptionID}
+            "NICs" {[array]$objects=GetUnattachedNICs $SubscriptionID}
+            "PIPs" {[array]$objects=GetUnattachedNICs $SubscriptionID}
+        }
+    }else{
+        Write-Verbose ("Resource group limitation: " + $ResourceGroup )
+            Switch ($ObjectType) {
+                "Disks" {[array]$objects=GetUnattachedDisks -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                "NICs" {[array]$objects=GetUnattachedNICs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                "PIPs" {[array]$objects=GetUnattachedNICs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+            }
+        
     }
+
     If ($objects){
         Foreach ($object in $objects) {
             #Check if the [0] in the array is the subscription if so, skip
@@ -433,6 +475,41 @@ Function DeleteObject{
         }
     }
 }
+Function SelectScope{
+    Param (
+        [parameter(Mandatory)]
+        $SubscriptionID
+    )   
+
+    $ResourceGroups=Get-AzResourceGroup
+    If ($ResourceGroups) {
+        $i=0
+        Foreach ($ResourceGroup in $ResourceGroups) {
+            #Check if the [0] in the array is the subscription if so, skip
+            If ($ResourceGroup.Account) {
+                $i=$i+1
+                next
+            }
+
+            Write-host ("[" + $i + "] ")   -NoNewline -ForegroundColor Green
+            Write-host $ResourceGroup.ResourceGroupName 
+            $i=$i+1
+        }
+        $SelectedObject = Read-Host -Prompt 'Type the number to set the scope to that resource group'
+        If ( $SelectedObject -match '\d' ) {
+            $RS=$ResourceGroups[$SelectedObject]
+            Write-Host ("Selected ResourceGroup: " + $ResourceGroups[$SelectedObject].ResourceGroupName)
+            return $RS.ResourceGroupName
+        }else{
+            Write-host "not a number - NO RESOURCE GROUP SELECTED"
+            return $false
+        }
+            #number selected is #SelectedObject
+    }else{
+        Write-host "no resource groups found"
+        return $false
+    }
+}
 Function SelectOperationsTarget{
     Param (
         [parameter(Mandatory)]
@@ -449,47 +526,93 @@ Function SelectOperationsTarget{
     Do {
         write-host ("using subscription: " + $SubscriptionID)
         write-host "Which resource type should be targgetted"
-        $SelectedObjectType = Read-Host -Prompt 'D[DISK], N[NICs], P[Public IP], R[Resource Groups], Q[QUIT]'
+        $SelectedObjectType = Read-Host -Prompt 'D[DISK], N[NICs], P[Public IP], R[Resource Groups], S[SCOPE], Q[QUIT]'
         Switch ($SelectedObjectType.ToUpper()) {
             "D" {$Resource=ShowDisks $SubscriptionID}
             "N" {$Resource=ShowNICs $SubscriptionID}
             "P" {$Resource=ShowPIPs $SubscriptionID}
-            "R" {$Resource=ShowResourceGroups $SubscriptionID}
+            "R" {$ResourceGroup=ShowResourceGroups $SubscriptionID}
+            "S" {
+                $ResourceGroup=SelectScope -SubscriptionID $SubscriptionID
+                $SelectedObjectType = Read-Host -Prompt 'D[DISK], N[NICs], P[Public IP], R[Resource Groups], Q[QUIT]'
+                Switch ($SelectedObjectType.ToUpper()) {
+                    "D" {$Resource=ShowDisks -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                    "N" {$Resource=ShowNICs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                    "P" {$Resource=ShowPIPs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                    "R" {$Resource=ShowResourceGroups -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                }
+            }
             "Q" {break}
         }
+        $break=$false
         DO {
-            $SelectedObject = Read-Host -Prompt 'Type the number to be selected, I[Info], R [Refresh], D [DELETE], or S[SELECT]'
+            $SelectedObject = Read-Host -Prompt 'Type the number to be selected, R [Refresh], D [DELETE], S [SELECT], or Q [QUIT]'
             If (($SelectedObject.ToLower() -ne "q" -or $SelectedObject.ToLower() -eq 'r' -or $SelectedObject.ToLower() -eq 'd') -and $SelectedObject -match '\d' ) {
                 #number selected is #SelectedObject
-                $ObjectAction = Read-Host -Prompt 'type L (LOCK), U (UNLOCK), R[REFRESH], or C (CONTINUE)'
+                $ObjectAction = Read-Host -Prompt 'type L (LOCK), U (UNLOCK), R [REFRESH], or C [CONTINUE}'
                 Switch ($ObjectAction.ToUpper()){
                     "L" {
                         Write-host ("Applying lock to:" + $Resource[$SelectedObject].Name + " in resource group: " + $Resource[$SelectedObject].ResourceGroupName)
                         Write-Verbose ("Running operation on: " + $Resource[$SelectedObject])
                         $Lock=ApplyResourceLock ($Resource[$SelectedObject])
-                        Switch ($SelectedObjectType.ToUpper()) {
-                            "D" {$Resource=ShowDisks $SubscriptionID}
-                            "N" {$Resource=ShowNICs $SubscriptionID}
-                            "I" {$Resource=ShowPIPs $SubscriptionID}
-                            "R" {$Resource=ShowResourceGroups $SubscriptionID}
+                        
+                        If (!($ResourceGroup)){
+                            Switch ($SelectedObjectType.ToUpper()) {
+                                "D" {$Resource=ShowDisks $SubscriptionID}
+                                "N" {$Resource=ShowNICs $SubscriptionID}
+                                "I" {$Resource=ShowPIPs $SubscriptionID}
+                                "R" {$Resource=ShowResourceGroups $SubscriptionID}
+                            }
+                        }else{
+
+                                Switch ($SelectedObjectType.ToUpper()) {
+                                    "D" {$Resource=ShowDisks -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                                    "N" {$Resource=ShowNICs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                                    "I" {$Resource=ShowPIPs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                                    "R" {$Resource=ShowResourceGroups $SubscriptionID}
+                                }
+                            
                         }
                     }
                     "U"{
                         Write-host ("Trying to remove lock from: " + $Resource[$SelectedObject].Name + " in resource group: " + $Resource[$SelectedObject].ResourceGroupName)
                         Write-Verbose ("Running operation on: " + $Resource[$SelectedObject])
                         $Lock=RemoveResourceLock ($Resource[$SelectedObject])
-                        Switch ($SelectedObjectType.ToUpper()) {
-                            "D" {$Resource=ShowDisks $SubscriptionID}
-                            "N" {$Resource=ShowNICs $SubscriptionID}
-                            "I" {$Resource=ShowPIPs $SubscriptionID}
-                            "R" {$Resource=ShowResourceGroups $SubscriptionID}
+                        If (!($ResourceGroup)){
+                            Switch ($SelectedObjectType.ToUpper()) {
+                                "D" {$Resource=ShowDisks $SubscriptionID}
+                                "N" {$Resource=ShowNICs $SubscriptionID}
+                                "I" {$Resource=ShowPIPs $SubscriptionID}
+                                "R" {$Resource=ShowResourceGroups $SubscriptionID}
+                            }
+                        }else{
+
+                                Switch ($SelectedObjectType.ToUpper()) {
+                                    "D" {$Resource=ShowDisks -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                                    "N" {$Resource=ShowNICs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                                    "I" {$Resource=ShowPIPs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                                    "R" {$Resource=ShowResourceGroups $SubscriptionID}
+                                }
+                            
                         }
                     }
                     "R"{
-                        Switch ($SelectedObjectType.ToUpper()) {
-                            "D" {$Resource=ShowDisks $SubscriptionID}
-                            "N" {$Resource=ShowNICs $SubscriptionID}
-                            "I" {$Resource=ShowPIPs $SubscriptionID}
+                        If (!($ResourceGroup)){
+                            Switch ($SelectedObjectType.ToUpper()) {
+                                "D" {$Resource=ShowDisks $SubscriptionID}
+                                "N" {$Resource=ShowNICs $SubscriptionID}
+                                "I" {$Resource=ShowPIPs $SubscriptionID}
+                                "R" {$Resource=ShowResourceGroups $SubscriptionID}
+                            }
+                        }else{
+
+                                Switch ($SelectedObjectType.ToUpper()) {
+                                    "D" {$Resource=ShowDisks -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                                    "N" {$Resource=ShowNICs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                                    "I" {$Resource=ShowPIPs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                                    "R" {$Resource=ShowResourceGroups $SubscriptionID}
+                                }
+                            
                         }
                     }
                     "C"{
@@ -503,10 +626,22 @@ Function SelectOperationsTarget{
                 break
             }elseif ($SelectedObject.ToLower() -eq "r"){
                 #need to refresh
-                Switch ($SelectedObjectType.ToUpper()) {
-                    "D" {$Resource=ShowDisks $SubscriptionID}
-                    "N" {$Resource=ShowNICs $SubscriptionID}
-                    "I" {$Resource=ShowPIPs $SubscriptionID}
+                If (!($ResourceGroup)){
+                    Switch ($SelectedObjectType.ToUpper()) {
+                        "D" {$Resource=ShowDisks $SubscriptionID}
+                        "N" {$Resource=ShowNICs $SubscriptionID}
+                        "I" {$Resource=ShowPIPs $SubscriptionID}
+                        "R" {$Resource=ShowResourceGroups $SubscriptionID}
+                    }
+                }else{
+
+                        Switch ($SelectedObjectType.ToUpper()) {
+                            "D" {$Resource=ShowDisks -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                            "N" {$Resource=ShowNICs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                            "I" {$Resource=ShowPIPs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                            "R" {$Resource=ShowResourceGroups $SubscriptionID}
+                        }
+                    
                 }
             }elseif ($SelectedObject.ToLower() -eq "d") {
                 Write-host "RUN DELETE SEQUENCE"
@@ -516,6 +651,8 @@ Function SelectOperationsTarget{
                     "N" {$Resource=DeleteObject -SubscriptionID $SubscriptionID -ObjectType "NICs" -Confirmed $Confirmed}
                     "I" {$Resource=DeleteObject -SubscriptionID $SubscriptionID -ObjectType "PIPs" -Confirmed $Confirmed}
                 }
+            }elseif ($SelectedObject.ToLower() -eq "q") {
+                $break=$true
             }
 
         }while ($break -ne $true)
