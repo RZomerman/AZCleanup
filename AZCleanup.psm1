@@ -46,7 +46,7 @@ Function GetSubscriptions{
 
 
 
-Function GetUnattachedNICs {
+Function Get-UnattachedNICs {
     Param (
         [parameter(Mandatory)]
         $SubscriptionID,
@@ -84,9 +84,9 @@ Function ShowNICS{
 
 
     If ($ResourceGroup) {
-        $nics=GetUnattachedNICs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup
+        $nics=Get-UnattachedNICs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup
     }else{    
-        $nics=GetUnattachedNICs $SubscriptionID
+        $nics=Get-UnattachedNICs $SubscriptionID
     }
 
     
@@ -167,7 +167,7 @@ Function ShowResourceGroups {
             return $ResourceGroups
         }
 }
-Function GetUnattachedPIPs {
+Function Get-UnattachedPIPs {
     Param (
         [parameter(Mandatory)]
         $SubscriptionID,
@@ -204,9 +204,9 @@ Function ShowPIPs{
 
 
     If ($ResourceGroup) {
-        $pips=GetUnattachedPIPs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup
+        $pips=Get-UnattachedPIPs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup
     }else{    
-        $pips=GetUnattachedPIPs $SubscriptionID
+        $pips=Get-UnattachedPIPs $SubscriptionID
     }
     
 
@@ -333,7 +333,7 @@ Function RemoveResourceLock {
         Write-host "No lock found"
     }   
 }
-Function GetUnattachedDisks{
+Function Get-UnattachedDisks{
     Param (
         [parameter(Mandatory)]
         $SubscriptionID,
@@ -346,11 +346,11 @@ Function GetUnattachedDisks{
         Set-AzContext -Subscription $SubscriptionID
     }
     If ($ResourceGroup) {
-        Write-host "Retrieving all disks in Resource Group: $ResourceGroup"
+        #Write-host "Retrieving all disks in Resource Group: $ResourceGroup"
         $CollectionOfDisks=get-azdisk | where {($_.DiskState -eq 'Unattached') -and ($_.ResourceGroupName -eq $ResourceGroup)} 
     }else{
         #get all unattached disks
-        Write-host "Retrieving all disks"
+        #Write-host "Retrieving all disks"
         $CollectionOfDisks=get-azdisk | where {$_.DiskState -eq 'Unattached'}
     }
 
@@ -358,7 +358,7 @@ Function GetUnattachedDisks{
     If (($CollectionOfDisks) -and ($CollectionOfDisks.count -gt 0)) {
         return $CollectionOfDisks
     }else{
-        write-host ":: Returning 0 disks"
+        #write-host ":: Returning 0 disks"
         return $false
     }
 
@@ -373,9 +373,9 @@ Function ShowDisks{
     
     
     If ($ResourceGroup) {
-        $disks=GetUnattachedDisks -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup
+        $disks=Get-UnattachedDisks -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup
     }else{    
-        $disks=GetUnattachedDisks $SubscriptionID
+        $disks=Get-UnattachedDisks $SubscriptionID
     }
 
     If (!($disks)){
@@ -391,7 +391,7 @@ Function ShowDisks{
         Foreach ($disk in $disks) {
             #Check if the [0] in the array is the subscription if so, skip
             If ($disk.Account) {
-                Write-host "CLEANING ARRAY"
+                #Write-host "CLEANING ARRAY"
                 $i=$i+1
                 next
             }
@@ -427,16 +427,16 @@ Function DeleteObject{
     If (!($ResourceGroup)){
         Write-Verbose ("No Resource group specified" )
         Switch ($ObjectType) {
-            "Disks" {[array]$objects=GetUnattachedDisks $SubscriptionID}
-            "NICs" {[array]$objects=GetUnattachedNICs $SubscriptionID}
-            "PIPs" {[array]$objects=GetUnattachedNICs $SubscriptionID}
+            "Disks" {[array]$objects=Get-UnattachedDisks $SubscriptionID}
+            "NICs" {[array]$objects=Get-UnattachedNICs $SubscriptionID}
+            "PIPs" {[array]$objects=Get-UnattachedNICs $SubscriptionID}
         }
     }else{
         Write-Verbose ("Resource group limitation: " + $ResourceGroup )
             Switch ($ObjectType) {
-                "Disks" {[array]$objects=GetUnattachedDisks -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
-                "NICs" {[array]$objects=GetUnattachedNICs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
-                "PIPs" {[array]$objects=GetUnattachedNICs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                "Disks" {[array]$objects=Get-UnattachedDisks -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                "NICs" {[array]$objects=Get-UnattachedNICs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
+                "PIPs" {[array]$objects=Get-UnattachedNICs -SubscriptionID $SubscriptionID -ResourceGroup $ResourceGroup}
             }
         
     }
@@ -445,7 +445,7 @@ Function DeleteObject{
         Foreach ($object in $objects) {
             #Check if the [0] in the array is the subscription if so, skip
             If ($object.Account) {
-                Write-host "CLEANING ARRAY"
+                #Write-host "CLEANING ARRAY"
                 $i=$i+1
                 next
             }
