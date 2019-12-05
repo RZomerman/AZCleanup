@@ -45,3 +45,19 @@ ApplyResourceLock -Resource $Resource
 Remove a lock (only possible if a single lock on the resource exists and the lock scope is the resource) 
 RemoveResourceLock -Resource $Resource
 (-ForResourceGroup) if $Resource is a ResourceGroup
+
+
+Quick Fix Example:
+   If you want to delete all unused disks (in a resource group or subscription), you can pipe the output to a remove command
+   
+   Get-UnattachedDisks -ResourceGroup MyRG | Remove-AzDisk
+
+This will run a delete command against every disk.. appending -Force will remove the verification for every deletion
+
+If you have a lot of disks, and you are sure on the disks to be deleted run it as a job for speeding up the deletion:
+
+   Get-UnattachedDisks -ResourceGroup MyRG | Remove-AzDisk -Force -AsJob
+   
+You can retrieve the job status through: 
+   
+   Get-Job
