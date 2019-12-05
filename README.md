@@ -15,9 +15,9 @@ a lock on a complete resource group to prevent deletion of any object in the res
 Then, select Delete, and it will delete the objects that do not have a lock on them. 
 
 You can also run the fuctions separately: 
-- GetUnattachedNICs -SubscriptionID 24890e90-123455-123457789-12438764370
-- GetUnattachedPIPs -SubscriptionID 24890e90-123455-123457789-12438764370
-- GetUnattachedDisks -SubscriptionID 24890e90-123455-123457789-12438764370
+- Get-UnattachedNICs 
+- Get-UnattachedPIPs 
+- Get-UnattachedDisks
 
 (-ResourceGroup 'ResgroupName') optional to further specify the scope
 
