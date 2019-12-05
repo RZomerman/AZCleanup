@@ -47,7 +47,7 @@ RemoveResourceLock -Resource $Resource
 (-ForResourceGroup) if $Resource is a ResourceGroup
 
 
-Quick Fix Example:
+# Quick Fix Examples:
    If you want to delete all unused disks (in a resource group or subscription), you can pipe the output to a remove command
    
    Get-UnattachedDisks -ResourceGroup MyRG | Remove-AzDisk
