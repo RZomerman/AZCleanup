@@ -48,13 +48,13 @@ Function GetSubscriptions{
 
 Function Get-UnattachedNICs {
     Param (
-        [parameter(Mandatory)]
+        [parameter()]
         $SubscriptionID,
         [parameter()]
         $ResourceGroup
     )   
     $context=Get-AzContext
-    If (!($context.Subscription.Id -eq $SubscriptionID)) {
+    If ($SubscriptionID -and (!($context.Subscription.Id -eq $SubscriptionID))) {
         Write-host "Switching Context"
         Set-AzContext -Subscription $SubscriptionID
     }
@@ -126,11 +126,11 @@ Function ShowNICS{
 
 Function ShowResourceGroups {
     Param (
-        [parameter(Mandatory)]
+        [parameter()]
         $SubscriptionID
     ) 
     $context=Get-AzContext
-    If (!($context.Subscription.Id -eq $SubscriptionID)) {
+    If ($SubscriptionID -and (!($context.Subscription.Id -eq $SubscriptionID))) {
         Write-host "Switching Context"
         Set-AzContext -Subscription $SubscriptionID
     }
@@ -169,13 +169,13 @@ Function ShowResourceGroups {
 }
 Function Get-UnattachedPIPs {
     Param (
-        [parameter(Mandatory)]
+        [parameter()]
         $SubscriptionID,
         [parameter()]
         $ResourceGroup
     )   
     $context=Get-AzContext
-    If (!($context.Subscription.Id -eq $SubscriptionID)) {
+    If ($SubscriptionID -and (!($context.Subscription.Id -eq $SubscriptionID))) {
         Write-host "Switching Context"
         Set-AzContext -Subscription $SubscriptionID
     }
@@ -335,16 +335,17 @@ Function RemoveResourceLock {
 }
 Function Get-UnattachedDisks{
     Param (
-        [parameter(Mandatory)]
+        [parameter()]
         $SubscriptionID,
         [parameter()]
         $ResourceGroup
     )   
-    $context=Get-AzContext
-    If (!($context.Subscription.Id -eq $SubscriptionID)) {
-        Write-host "Switching Context"
-        Set-AzContext -Subscription $SubscriptionID
-    }
+
+        $context=Get-AzContext
+        If ($SubscriptionID -and (!($context.Subscription.Id -eq $SubscriptionID))) {
+            Write-host "Switching Context"
+            Set-AzContext -Subscription $SubscriptionID
+        }
     If ($ResourceGroup) {
         #Write-host "Retrieving all disks in Resource Group: $ResourceGroup"
         $CollectionOfDisks=get-azdisk | where {($_.DiskState -eq 'Unattached') -and ($_.ResourceGroupName -eq $ResourceGroup)} 
